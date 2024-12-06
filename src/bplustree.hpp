@@ -35,17 +35,17 @@ public :
     }
 
     ~BPlusTree() {
-        delete root_node_;
+
+        _clear_tree(root_node_);
         root_node_ = nullptr;
 
         if (values_) {
             auto *current = values_;
-            auto *next = values_->next;
 
             while (current) {
+                auto *next = current->next;
                 delete current;
                 current = next;
-                next = next ? next->next : nullptr;
             }
 
             values_ = nullptr;
@@ -113,6 +113,23 @@ public :
 
         return FindResults(found, current_node_ptr, found_index);
     }
+
+    /**********************************
+     * _clear_tree
+     * Only clears the tree structure not the value list.
+     **********************************/
+    void _clear_tree(tree_node_type *node) {
+
+        if (node->is_internal()) {
+            int max = node->num_keys;
+            for(int i = 0; i < max; ++i) {
+                _clear_tree((tree_node_type *)node->child_ptrs[i]);
+            }
+        }
+
+        delete node;
+    }
+
 
     /**********************************
      * _split_node
