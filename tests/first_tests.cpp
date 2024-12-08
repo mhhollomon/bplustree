@@ -1,126 +1,61 @@
 #include <bplustree.hpp>
+#include <treeprinter.hpp>
+
 #include <catch2/catch_all.hpp>
 
-#include <iostream>
-#include <queue>
+#include <vector>
+#include <algorithm>
+#include <random>
 
+using namespace BPT;
 
-template<class K, class V>
-class tree_printer {
-    using node_ptr_type = BPT::BPlusTree<K, V>::tree_node_type *;
+//template<class K, class V, std::size_t FO>
+template<template<class, class, std::size_t> class T, class K, class V, std::size_t FO>
+void check_tree(T<K, V, FO> *node_ptr,
+                void *parent) {
 
-    const BPT::BPlusTree<K, V> & tree_;
-    std::queue<std::pair<int, node_ptr_type>> queue_;
+    using node_ptr_type = BPT::TreeNode<K, V, FO> *;
 
-    std::map<void *, int> ptr_map_;
-    int numbers = 0;
+    REQUIRE(node_ptr != nullptr);
+    REQUIRE(node_ptr->parent == parent);
 
+    if (node_ptr->is_leaf()) return;
 
-public:
-    tree_printer(const BPT::BPlusTree<K, V> & tree) : tree_{tree} {}
+    for (int index = 0 ; index < node_ptr->num_keys; ++index ) {
+        auto curr_key = node_ptr->keys[index];
 
-    void print() {
-        queue_.push(std::make_pair(0, tree_.get_root_ptr()));
+        auto *child_ptr = node_ptr_type(node_ptr->child_ptrs[index]);
 
-        int current_level = -1;
-        std::cout << "TREE -- ";
+        for(int index = 0 ; index < child_ptr->num_keys; ++index) {
+            REQUIRE(curr_key > child_ptr->keys[index]);
 
-        while (not queue_.empty()) {
-            auto curr_pair = queue_.front();
-            queue_.pop();
-            int level = curr_pair.first;
-            if (level != current_level) {
-                std::cout << "\n" << level << ": ";
-                current_level = level;
-            } else {
-                std::cout << ' ';
-            }
-            print_node(current_level+1, curr_pair.second);
         }
 
-        std::cout << "\n";
+        check_tree(child_ptr, node_ptr);
 
-        std::cout << "VALUES -- \n";
-        auto * value_ptr = tree_.get_values();
+        child_ptr = node_ptr_type(node_ptr->child_ptrs[index + 1]);
 
-        while (value_ptr != nullptr) {
-            std::cout << "(" << get_alias(value_ptr) << ") " << value_ptr->key << ", " << value_ptr->value << "\n";
-            value_ptr = value_ptr->next;
+        for(int index = 0 ; index < child_ptr->num_keys; ++index) {
+            REQUIRE(curr_key <= child_ptr->keys[index]);
+
         }
-/* 
-        for (auto const &it : ptr_map_ ) {
-            std::cout << it.first << " => " << it.second << "\n";
-        } 
-*/
 
+        check_tree(child_ptr, node_ptr);
 
     }
 
-    int get_alias(void * node_ptr) {
-        int alias;
-
-        if (auto search = ptr_map_.find(node_ptr); search != ptr_map_.end()) {
-            alias = search->second;
-        } else {
-            alias = numbers++;
-            ptr_map_.insert(std::make_pair(node_ptr, alias));
-        }
-
-        return alias;
-
-    }
-
-    void print_node(int child_level, node_ptr_type node_ptr) {
-        int alias = get_alias(node_ptr);
-
-        std::cout << "<" << alias << ">[" << (node_ptr->is_internal() ? 'I' : 'L');
-
-        for (int i = 0; i < node_ptr->num_keys; ++i) {
-            if (node_ptr->is_internal()) {
-                std::cout << " (" << get_alias(node_ptr->child_ptrs[i]) << ")"  << ' ' << node_ptr->keys[i];
-            } else {
-                std::cout << ' ' << node_ptr->keys[i] << "/" << get_alias(node_ptr->child_ptrs[i]);
-            }
-        }
-
-        if (node_ptr->is_internal()) {
-            std::cout << " (" << get_alias(node_ptr->child_ptrs[node_ptr->num_keys]) << ")";
-
-        }
-
-        std::cout << " ]";
-
-        if (node_ptr->is_internal()) {
-            for (int i = 0; i < node_ptr->num_keys+1; ++i) {
-                queue_.push(std::make_pair(child_level, 
-                    (node_ptr_type)node_ptr->child_ptrs[i]));
-            }                
-        }
-
-    }
-
-
-};
-
-
-template <class K, class V>
-void print_tree(const BPT::BPlusTree<K, V> & tree) {
-
-    auto * node_ptr = tree.get_root_ptr();
-
-    print_tree_node(node_ptr);
-    std::cout << "\n";
+    
 }
 
 
 TEST_CASE("Basic Test", "[basic]") {
-    BPT::BPlusTree<int, int> tree;
+    BPlusTree<int, int> tree;
 
     REQUIRE(sizeof(tree) == 16);
 }
 
 TEST_CASE("One insert", "[basic]") {
-    BPT::BPlusTree<int, int> tree;
+    BPlusTree<int, int> tree;
 
     REQUIRE(tree.insert(5, 50) == true);
 
@@ -140,7 +75,7 @@ TEST_CASE("One insert", "[basic]") {
 }
 
 TEST_CASE("Two inserts", "[basic]") {
-    BPT::BPlusTree<int, int> tree;
+    BPlusTree<int, int> tree;
 
     tree.insert(5, 50);
     tree.insert(6, 60);
@@ -192,13 +127,13 @@ TEST_CASE("lower insert", "[basic]") {
     REQUIRE(values->key == 5);
     REQUIRE(values->value == 50);
 
-    tree_printer(tree).print();
+    //tree_printer(tree).print();
 
 
 }
 
 TEST_CASE("need to split", "[basic]") {
-    BPT::BPlusTree<int, int> tree;
+    BPlusTree<int, int> tree;
 
     REQUIRE(tree.insert(5, 50) == true);
     REQUIRE(tree.insert(3, 30) == true);
@@ -225,13 +160,13 @@ TEST_CASE("need to split", "[basic]") {
     REQUIRE(values->key == 3);
     REQUIRE(values->value == 30);
 
-    tree_printer(tree).print();
+    //tree_printer(tree).print();
 
 
 }
 
-TEST_CASE("more split", "[basic]") {
-    BPT::BPlusTree<int, int> tree;
+ TEST_CASE("more split", "[basic]") {
+    BPlusTree<int, int> tree;
 
     REQUIRE(tree.insert(5, 50) == true);
     REQUIRE(tree.insert(3, 30) == true);
@@ -240,36 +175,123 @@ TEST_CASE("more split", "[basic]") {
     REQUIRE(tree.insert(9, 90) == true);
     REQUIRE(tree.insert(11, 110) == true);
     REQUIRE(tree.insert(4, 40) == true);
-    tree_printer(tree).print();
+    //tree_printer(tree).print();
 
     REQUIRE(tree.insert(20, 200) == true);
-    tree_printer(tree).print();
+    //tree_printer(tree).print();
 
     REQUIRE(tree.insert(8, 80) == true);
-    tree_printer(tree).print();
+    //tree_printer(tree).print();
 
     REQUIRE(tree.insert(21, 210) == true);
-    tree_printer(tree).print();
+    //tree_printer(tree).print();
 
     REQUIRE(tree.insert(15, 150) == true);
-    tree_printer(tree).print();
+    //tree_printer(tree).print();
 
     REQUIRE(tree.insert(30, 300) == true);
-    tree_printer(tree).print();
+    //tree_printer(tree).print();
     REQUIRE(tree.insert(25, 250) == true);
-    tree_printer(tree).print();
+    //tree_printer(tree).print();
 
     REQUIRE(tree.insert(40, 400) == true);
-    tree_printer(tree).print();
+    //tree_printer(tree).print();
     REQUIRE(tree.insert(35, 350) == true);
-    tree_printer(tree).print();
+    //tree_printer(tree).print();
 }
 
 TEST_CASE("at", "[basic]") {
-    BPT::BPlusTree<int, int> tree;
+    BPlusTree<int, int> tree;
 
     REQUIRE(tree.insert(5, 50) == true);
     REQUIRE(tree.at(5) == 50);
 
+
+}
+
+TEST_CASE("remove", "[basic]") {
+    BPlusTree<int, int> tree;
+
+    REQUIRE(tree.insert(5, 50) == true);
+    REQUIRE(tree.insert(6, 60) == true);
+
+    REQUIRE(tree.remove(20) == false);
+
+    REQUIRE(tree.remove(5) == true);
+
+    {
+        auto find_result = tree.find(5);
+        REQUIRE(find_result.first == false);
+    }
+
+    {
+        auto find_result = tree.find(6);
+        REQUIRE(find_result.first == true);
+        REQUIRE(find_result.second == 60);
+    }
+
+    //tree_printer(tree).print();
+
+    REQUIRE(tree.insert(3, 30) == true);
+    //tree_printer(tree).print();
+    {
+        auto find_result = tree.find(3);
+        REQUIRE(find_result.first == true);
+    }
+
+    REQUIRE(tree.insert(5, 5000) == true);
+    //tree_printer(tree).print();
+    {
+        auto find_result = tree.find(5);
+        REQUIRE(find_result.first == true);
+        REQUIRE(find_result.second == 5000);
+    }
+
+    REQUIRE(tree.remove(5) == true);
+    REQUIRE(tree.insert(10, 100) == true);
+    REQUIRE(tree.insert(11, 110) == true);
+    //tree_printer(tree).print();
+    {
+        auto find_result = tree.find(10);
+        REQUIRE(find_result.first == true);
+        REQUIRE(find_result.second == 100);
+    }
+
+}
+
+TEST_CASE("Multilevel split", "[split]") {
+
+    const int num_inserts = 125;
+
+    std::vector<int> keys;
+    int total_inserts = num_inserts;
+    int total_removes = 0;
+
+    BPlusTree<int, int> tree;
+    auto tp = tree_printer{tree};
+    keys.reserve(num_inserts);
+
+
+    for (int i = 0; i < num_inserts; ++i) {
+        keys.push_back(i);
+    }
+    
+    std::random_device rd;
+    std::mt19937 g(rd());
+
+    // inclusive
+    std::uniform_int_distribution<int> shuffle_dist(0, num_inserts-1);
+
+    // Shuffle the array
+    std::shuffle(keys.begin(), keys.end(), g); 
+
+    // load a bunch
+    for (int index = 0; index < keys.size(); ++index) {
+        int i = keys.at(index);
+        //std::cout << "INSERT " << index << "(" << i << ") ------------------------------------\n";
+        REQUIRE(tree.insert(i, i*10) == true);
+        //tp.print(false);
+        check_tree(tree.get_root_ptr(), nullptr);
+    }
 
 }
