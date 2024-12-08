@@ -9,6 +9,12 @@ point.
 
 MIT license.
 
+## Concurrency
+
+This is not concurrency safe without additional locking.
+The tree methods can be called without problems from different threads. However,
+two threads may not call methods at the same time - unless they are both reads.
+
 Caveat Scriptor
 
 ## Interface (so far)
@@ -39,6 +45,26 @@ Returns `true` if it actually needed to remove the key.
 ### Find
 ```cpp
 std::pair<bool, const value_type &> find(const key_type &key);
+```
+
+### Clear
+```cpp
+void clear();
+```
+Removes all keys from the tree.
+
+### Iterators
+Note that only const iterators are provide at the moment.
+Allowing the user to actually change keys/values through the iterator will
+destroy the tree.
+
+Also, the iterator classes are private.
+
+The only operation that invalidates iterators is `clear()`.
+
+```cpp
+const_iterator cbegin();
+const_iterator cend();
 ```
 
 ### At

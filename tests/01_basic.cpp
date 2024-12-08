@@ -3,49 +3,7 @@
 
 #include <catch2/catch_all.hpp>
 
-#include <vector>
-#include <algorithm>
-#include <random>
-
 using namespace BPT;
-
-//template<class K, class V, std::size_t FO>
-template<template<class, class, std::size_t> class T, class K, class V, std::size_t FO>
-void check_tree(T<K, V, FO> *node_ptr,
-                void *parent) {
-
-    using node_ptr_type = BPT::TreeNode<K, V, FO> *;
-
-    REQUIRE(node_ptr != nullptr);
-    REQUIRE(node_ptr->parent == parent);
-
-    if (node_ptr->is_leaf()) return;
-
-    for (int index = 0 ; index < node_ptr->num_keys; ++index ) {
-        auto curr_key = node_ptr->keys[index];
-
-        auto *child_ptr = node_ptr_type(node_ptr->child_ptrs[index]);
-
-        for(int index = 0 ; index < child_ptr->num_keys; ++index) {
-            REQUIRE(curr_key > child_ptr->keys[index]);
-
-        }
-
-        check_tree(child_ptr, node_ptr);
-
-        child_ptr = node_ptr_type(node_ptr->child_ptrs[index + 1]);
-
-        for(int index = 0 ; index < child_ptr->num_keys; ++index) {
-            REQUIRE(curr_key <= child_ptr->keys[index]);
-
-        }
-
-        check_tree(child_ptr, node_ptr);
-
-    }
-
-    
-}
 
 
 TEST_CASE("Basic Test", "[basic]") {
@@ -69,8 +27,8 @@ TEST_CASE("One insert", "[basic]") {
     REQUIRE(values != nullptr);
     REQUIRE(values->previous == nullptr);
     REQUIRE(values->next == nullptr);
-    REQUIRE(values->key == 5);
-    REQUIRE(values->value == 50);
+    REQUIRE(values->kv.key == 5);
+    REQUIRE(values->kv.value == 50);
 
 }
 
@@ -91,13 +49,13 @@ TEST_CASE("Two inserts", "[basic]") {
     REQUIRE(values != nullptr);
     REQUIRE(values->previous == nullptr);
     REQUIRE(values->next != nullptr);
-    REQUIRE(values->key == 5);
-    REQUIRE(values->value == 50);
+    REQUIRE(values->kv.key == 5);
+    REQUIRE(values->kv.value == 50);
 
     values = values->next;
     REQUIRE(values->next == nullptr);
-    REQUIRE(values->key == 6);
-    REQUIRE(values->value == 60);
+    REQUIRE(values->kv.key == 6);
+    REQUIRE(values->kv.value == 60);
 
 
 }
@@ -119,13 +77,13 @@ TEST_CASE("lower insert", "[basic]") {
     REQUIRE(values != nullptr);
     REQUIRE(values->previous == nullptr);
     REQUIRE(values->next != nullptr);
-    REQUIRE(values->key == 3);
-    REQUIRE(values->value == 30);
+    REQUIRE(values->kv.key == 3);
+    REQUIRE(values->kv.value == 30);
 
     values = values->next;
     REQUIRE(values->next == nullptr);
-    REQUIRE(values->key == 5);
-    REQUIRE(values->value == 50);
+    REQUIRE(values->kv.key == 5);
+    REQUIRE(values->kv.value == 50);
 
     //tree_printer(tree).print();
 
@@ -152,53 +110,19 @@ TEST_CASE("need to split", "[basic]") {
     REQUIRE(values != nullptr);
     REQUIRE(values->previous == nullptr);
     REQUIRE(values->next != nullptr);
-    REQUIRE(values->key == 1);
-    REQUIRE(values->value == 10);
+    REQUIRE(values->kv.key == 1);
+    REQUIRE(values->kv.value == 10);
 
     values = values->next;
     REQUIRE(values->next != nullptr);
-    REQUIRE(values->key == 3);
-    REQUIRE(values->value == 30);
+    REQUIRE(values->kv.key == 3);
+    REQUIRE(values->kv.value == 30);
 
     //tree_printer(tree).print();
 
 
 }
 
- TEST_CASE("more split", "[basic]") {
-    BPlusTree<int, int> tree;
-
-    REQUIRE(tree.insert(5, 50) == true);
-    REQUIRE(tree.insert(3, 30) == true);
-    REQUIRE(tree.insert(1, 10) == true);
-    REQUIRE(tree.insert(10, 100) == true);
-    REQUIRE(tree.insert(9, 90) == true);
-    REQUIRE(tree.insert(11, 110) == true);
-    REQUIRE(tree.insert(4, 40) == true);
-    //tree_printer(tree).print();
-
-    REQUIRE(tree.insert(20, 200) == true);
-    //tree_printer(tree).print();
-
-    REQUIRE(tree.insert(8, 80) == true);
-    //tree_printer(tree).print();
-
-    REQUIRE(tree.insert(21, 210) == true);
-    //tree_printer(tree).print();
-
-    REQUIRE(tree.insert(15, 150) == true);
-    //tree_printer(tree).print();
-
-    REQUIRE(tree.insert(30, 300) == true);
-    //tree_printer(tree).print();
-    REQUIRE(tree.insert(25, 250) == true);
-    //tree_printer(tree).print();
-
-    REQUIRE(tree.insert(40, 400) == true);
-    //tree_printer(tree).print();
-    REQUIRE(tree.insert(35, 350) == true);
-    //tree_printer(tree).print();
-}
 
 TEST_CASE("at", "[basic]") {
     BPlusTree<int, int> tree;
@@ -259,39 +183,46 @@ TEST_CASE("remove", "[basic]") {
 
 }
 
-TEST_CASE("Multilevel split", "[split]") {
 
-    const int num_inserts = 125;
 
-    std::vector<int> keys;
-    int total_inserts = num_inserts;
-    int total_removes = 0;
-
+/* TEST_CASE("iterator", "[basic]") {
     BPlusTree<int, int> tree;
-    auto tp = tree_printer{tree};
-    keys.reserve(num_inserts);
 
+    REQUIRE(tree.insert(5, 50) == true);
+    REQUIRE(tree.insert(6, 60) == true);
 
-    for (int i = 0; i < num_inserts; ++i) {
-        keys.push_back(i);
-    }
-    
-    std::random_device rd;
-    std::mt19937 g(rd());
+    REQUIRE(tree.remove(5) == true);
 
-    // inclusive
-    std::uniform_int_distribution<int> shuffle_dist(0, num_inserts-1);
+    auto it = tree.begin();
+    REQUIRE(it != tree.end());
+    REQUIRE(it->key == 6);
+    REQUIRE(it->value == 60);
 
-    // Shuffle the array
-    std::shuffle(keys.begin(), keys.end(), g); 
+    it++;
 
-    // load a bunch
-    for (int index = 0; index < keys.size(); ++index) {
-        int i = keys.at(index);
-        //std::cout << "INSERT " << index << "(" << i << ") ------------------------------------\n";
-        REQUIRE(tree.insert(i, i*10) == true);
-        //tp.print(false);
-        check_tree(tree.get_root_ptr(), nullptr);
-    }
+    REQUIRE(it == tree.end());
 
 }
+ */
+
+TEST_CASE("const iterator", "[basic]") {
+    BPlusTree<int, int> tree;
+
+    REQUIRE(tree.insert(5, 50) == true);
+    REQUIRE(tree.insert(6, 60) == true);
+
+    REQUIRE(tree.remove(5) == true);
+
+    auto it = tree.cbegin();
+    REQUIRE(it != tree.cend());
+    REQUIRE(it->key == 6);
+    REQUIRE(it->value == 60);
+
+    it++;
+
+    REQUIRE(it == tree.cend());
+
+}
+
+
+

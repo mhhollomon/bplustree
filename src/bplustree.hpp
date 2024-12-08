@@ -10,6 +10,7 @@
 #include <format>
 #include <cassert>
 #include <bitset>
+#include <iterator>
 
 //#include <iostream>
 
@@ -29,31 +30,19 @@ class BPlusTree {
 public :
 
     using key_type = K;
-    using value_type = V;
+    using mapped_type = V;
     constexpr static std::size_t fan_out = FO;
-    using tree_node_type = TreeNode<K, V, fan_out>;
-    using value_wrapper_type = ValueWrapper<K, V>;
+
+    using value_wrapper_type = ValueWrapper<key_type, mapped_type>;
+    using value_type = typename value_wrapper_type::kvpair;
+    using tree_node_type = TreeNode<key_type, mapped_type, fan_out>;
 
     BPlusTree() : root_node_(new tree_node_type()) {
         root_node_->ntype = LeafNode;
     }
 
     ~BPlusTree() {
-
-        _clear_tree(root_node_);
-        root_node_ = nullptr;
-
-        if (values_) {
-            auto *current = values_;
-
-            while (current) {
-                auto *next = current->next;
-                delete current;
-                current = next;
-            }
-
-            values_ = nullptr;
-        }
+        _clear_all(true, false);
     }
 
     tree_node_type &get_root() const { return *root_node_; }
@@ -71,6 +60,109 @@ public :
             {}
 
     };
+
+private:
+    /*********************************************************************
+     * Private interface
+     ********************************************************************/
+    struct const_iterator {
+
+        using iterator_category = std::input_iterator_tag;
+        using difference_type = std::ptrdiff_t;
+
+        // hopefully these works.
+        using value_type = value_type;
+        using value_wrapper_type = value_wrapper_type;
+
+        using pointer = value_type const *;
+        using reference = value_type const &;
+
+        const_iterator(value_wrapper_type const *ptr) : ptr_{ptr} {
+
+            while (ptr_ and ptr_->deleted) {
+                ptr_ = ptr_->next;
+            }
+        }
+
+        reference operator*() const {
+            return ptr_->kv;
+        }
+
+        pointer operator->() { return &(ptr_->kv); }
+
+        // Prefix increment
+        const_iterator & operator++() {
+            // according to the standard
+            // incrementing past the end() is "undefined"
+            // So don't bother trying to catch anything.
+            do {
+                ptr_ = ptr_->next;
+            } while(ptr_ and ptr_->deleted );
+
+            return *this;
+        }
+
+        // Postfix increment
+        const_iterator operator++(int) { const_iterator tmp = *this; ++(*this); return tmp; }
+
+
+        friend bool operator== (const const_iterator& a, const const_iterator& b) { return a.ptr_ == b.ptr_; };
+        friend bool operator!= (const const_iterator& a, const const_iterator& b) { return a.ptr_ != b.ptr_; };
+
+    private :
+        value_wrapper_type const * ptr_;
+
+    };
+
+    struct iterator {
+
+        using iterator_category = std::input_iterator_tag;
+        using difference_type = std::ptrdiff_t;
+
+        // hopefully these works.
+        using value_type = value_type;
+        using value_wrapper_type = value_wrapper_type;
+
+        using pointer = value_type*;
+        using reference = value_type&;
+
+        iterator(value_wrapper_type *ptr) : ptr_{ptr} {
+
+            while (ptr_ and ptr_->deleted) {
+                ptr_ = ptr_->next;
+            }
+        }
+
+        reference operator*() const {
+            return ptr_->kv;
+        }
+
+        pointer operator->() { return &(ptr_->kv); }
+
+        // Prefix increment
+        iterator & operator++() {
+            // according to the standard
+            // incrementing past the end() is "undefined"
+            // So don't bother trying to catch anything.
+            do {
+                ptr_ = ptr_->next;
+            } while(ptr_ and ptr_->deleted );
+
+            return *this;
+        }
+
+        // Postfix increment
+        iterator operator++(int) { iterator tmp = *this; ++(*this); return tmp; }
+
+
+        friend bool operator== (const iterator& a, const iterator& b) { return a.ptr_ == b.ptr_; };
+        friend bool operator!= (const iterator& a, const iterator& b) { return a.ptr_ != b.ptr_; };
+
+    private :
+        value_wrapper_type *ptr_;
+
+    };
+
 
     /**********************************
      * _find
@@ -121,6 +213,33 @@ public :
     }
 
     /**********************************
+     * _clear_all
+     **********************************/
+    void _clear_all(bool clear_values = true, bool new_root = true) {
+
+        _clear_tree(root_node_);
+        if (new_root) {
+            root_node_ = new tree_node_type(LeafNode);
+        } else {
+            root_node_ = nullptr;
+        }
+
+        if (clear_values and values_) {
+            auto *current = values_;
+
+            while (current) {
+                auto *next = current->next;
+                delete current;
+                current = next;
+            }
+
+            values_ = nullptr;
+        }
+
+    }
+
+
+    /**********************************
      * _clear_tree
      * Only clears the tree structure not the value list.
      **********************************/
@@ -129,14 +248,7 @@ public :
         if (node->is_internal()) {
             int max = node->num_keys;
             for(int i = 0; i <= max; ++i) {
-                auto * child = (tree_node_type *)node->child_ptrs[i];
-                // first pointer in a node is potentially
-                // shared with the last pointer in its left sibling.
-                // Make sure we don't try to delete twice.
-                if (child->parent == node) {
-                    child->parent = nullptr;
-                    _clear_tree((tree_node_type *)node->child_ptrs[i]);
-                }
+                _clear_tree((tree_node_type *)node->child_ptrs[i]);
             }
         }
 
@@ -147,7 +259,7 @@ public :
      * _split_internal
      * Returns the new node that is created.
      **********************************/
-    tree_node_type * _split_internal(tree_node_type *old_node, key_type &new_key, tree_node_type *new_child ) {
+    tree_node_type * _split_internal(tree_node_type *old_node, const key_type &new_key, tree_node_type *new_child ) {
         assert(old_node != nullptr);
         assert(new_child != nullptr);
         assert(old_node->is_internal());
@@ -253,7 +365,7 @@ public :
      * _split_node
      * Returns the new node that is created.
      **********************************/
-    tree_node_type * _split_node(tree_node_type *old_node, key_type &new_key, void *child_ptr ) {
+    tree_node_type * _split_node(tree_node_type *old_node, const key_type &new_key, void *child_ptr ) {
         assert(old_node != nullptr);
         assert(child_ptr != nullptr);
 
@@ -322,7 +434,7 @@ public :
      * _insert_into_node
      **********************************/
 
-    void _insert_into_node(tree_node_type *node, key_type &new_key, void* new_child ) {
+    void _insert_into_node(tree_node_type *node, const key_type &new_key, void* new_child ) {
         assert(node != nullptr);
         assert(new_child != nullptr);
         assert(not node->is_full());
@@ -414,11 +526,15 @@ public :
 
     }
 
+public:
+    /*********************************************************************
+     * Public interface
+     ********************************************************************/
 
     /**********************************
      * INSERT
      **********************************/
-    bool insert(key_type key, value_type value) {
+    bool insert(const key_type &key, mapped_type value) {
 
         auto find_results = _find(key);
 
@@ -428,7 +544,7 @@ public :
             if (find_results.node->deleted[find_results.index]) {
                 // deleted - update the value and "undelete"
                 auto * value_ptr = find_results.node->get_value_ptr(find_results.index);
-                value_ptr->value = value;
+                value_ptr->kv.value = value;
                 value_ptr->deleted = false;
                 find_results.node->deleted[find_results.index] = false;
                 return true;
@@ -477,35 +593,63 @@ public :
     /*********************************
      * FIND
      *********************************/
-    std::pair<bool, const value_type &> find(const key_type &key) {
+    std::pair<bool, const mapped_type &> find(const key_type &key) {
 
         auto results = _find(key);
 
         if (results.found) {
             if (results.node->deleted[results.index]) {
-                return {false, value_type{}};
+                return {false, mapped_type{}};
             } else {
                 auto * value_ptr = (value_wrapper_type *)results.node->child_ptrs[results.index];
-                return {true, value_ptr->value};
+                return {true, value_ptr->kv.value};
             }
         }
 
-        return {false, value_type{}};
+        return {false, mapped_type{}};
 
     }
+    /*********************************
+     * CLEAR
+     *********************************/
     
+    void clear() {
+        _clear_all();
+    }
+
+    /*********************************
+     * BEGIN
+     *********************************/
+    //iterator begin() { return iterator(values_); }
+
+    /*********************************
+     * END
+     *********************************/
+    //iterator end() { return iterator(nullptr); }
+
+
+    /*********************************
+     * CBEGIN
+     *********************************/
+    const_iterator cbegin() { return const_iterator(values_); }
+
+    /*********************************
+     * CEND
+     *********************************/
+    const_iterator cend() { return const_iterator(nullptr); }
+
     /*******************************************************
      * INTERFACE for C++20
      ******************************************************/
     /**********************************
      * at
      **********************************/
-    value_type & at(const key_type &key) {
+    mapped_type & at(const key_type &key) {
         auto results = _find(key);
 
         if (results.found) {
             auto * value_ptr = (value_wrapper_type *)results.node->child_ptrs[results.index];
-            return value_ptr->value;
+            return value_ptr->kv.value;
         } else {
             throw std::out_of_range("Could not find key");
         }

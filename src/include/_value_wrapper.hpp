@@ -3,9 +3,13 @@ template<class K, class V>
 struct ValueWrapper {
     ValueWrapper *previous = nullptr;
     ValueWrapper *next = nullptr;
-    K key;
-    V value;
+
+    struct kvpair {
+        K key;
+        V value;
+    } kv;
+
     bool deleted = false;
 
-    ValueWrapper(K inkey, V invalue) : key(inkey), value(invalue) {}
+    ValueWrapper(K inkey, V invalue) : kv{inkey, invalue} {}
 };
