@@ -24,6 +24,9 @@ namespace BPT {
 
 constexpr static std::size_t DEFAULT_FAN_OUT = 5;
 
+template<class Key>
+class set;
+
 template<class K, class V, std::size_t FO = DEFAULT_FAN_OUT>
 class BPlusTree {
 
@@ -37,8 +40,34 @@ public :
     using value_type = typename value_wrapper_type::kvpair;
     using tree_node_type = TreeNode<key_type, mapped_type, fan_out>;
 
-    BPlusTree() : root_node_(new tree_node_type()) {
-        root_node_->ntype = LeafNode;
+    BPlusTree() : root_node_(new tree_node_type(LeafNode)) {
+    }
+
+    BPlusTree(BPlusTree &other) : root_node_(new tree_node_type(LeafNode)) {
+        operator=(other);
+    }
+
+
+    void swap(BPlusTree &other) {
+        std::swap(root_node_, other.root_node_);
+        std::swap(values_, other.values_);
+    }
+
+    BPlusTree(BPlusTree &&other) : root_node_(new tree_node_type(LeafNode)) {
+        swap(other);
+    }
+
+    BPlusTree &operator=(BPlusTree const &other) {
+        clear();
+        for (auto const & it : std::as_const(other)) {
+            insert(it.key, it.value);
+        }
+
+        return *this;
+    }
+
+    BPlusTree &operator=(BPlusTree &&other) {
+        swap(other);
     }
 
     ~BPlusTree() {
@@ -62,6 +91,7 @@ public :
     };
 
 private:
+
     /*********************************************************************
      * Private interface
      ********************************************************************/
@@ -88,7 +118,7 @@ private:
             return ptr_->kv;
         }
 
-        pointer operator->() { return &(ptr_->kv); }
+        pointer operator->() const { return &(ptr_->kv); }
 
         // Prefix increment
         const_iterator & operator++() {
@@ -137,7 +167,7 @@ private:
             return ptr_->kv;
         }
 
-        pointer operator->() { return &(ptr_->kv); }
+        pointer operator->() const { return &(ptr_->kv); }
 
         // Prefix increment
         iterator & operator++() {
@@ -170,7 +200,7 @@ private:
      * Note : returns "true" even if the key has been deleted.
      * It is up to the caller to decide if that is good or bad.
      **********************************/
-    FindResults _find(key_type key) {
+    FindResults _find(key_type key) const {
 
         auto *current_node_ptr = get_root_ptr();
         bool found = false;
@@ -217,11 +247,13 @@ private:
      **********************************/
     void _clear_all(bool clear_values = true, bool new_root = true) {
 
-        _clear_tree(root_node_);
-        if (new_root) {
-            root_node_ = new tree_node_type(LeafNode);
-        } else {
-            root_node_ = nullptr;
+        if (new_root == false or root_node_->is_internal() or root_node_->num_keys > 0 ) { 
+            _clear_tree(root_node_);
+            if (new_root) {
+                root_node_ = new tree_node_type(LeafNode);
+            } else {
+                root_node_ = nullptr;
+            }
         }
 
         if (clear_values and values_) {
@@ -534,25 +566,25 @@ public:
     /**********************************
      * INSERT
      **********************************/
-    bool insert(const key_type &key, mapped_type value) {
+    std::pair<const_iterator, bool> insert(const key_type &key, mapped_type value) {
 
         auto find_results = _find(key);
 
         //std::cout << "insert : find " << key << "(" << find_results.found << ")\n";
 
         if (find_results.found) {
+            auto * value_ptr = find_results.node->get_value_ptr(find_results.index);
             if (find_results.node->deleted[find_results.index]) {
                 // deleted - update the value and "undelete"
-                auto * value_ptr = find_results.node->get_value_ptr(find_results.index);
                 value_ptr->kv.value = value;
                 value_ptr->deleted = false;
                 find_results.node->deleted[find_results.index] = false;
-                return true;
+                return {{value_ptr}, true};
 
             } else {
                 // future to do - support multimap
                 // Support insert_or_assign
-                return false;
+                return {{value_ptr}, false};
             }
         }
 
@@ -560,15 +592,17 @@ public:
 
         //std::cout << "insert : just before action\n";
 
+        auto *value_ptr = new value_wrapper_type(key, value);
+
         if (leaf_ptr->num_keys == tree_node_type::key_limit ) {
-            _split_node(leaf_ptr, key, new value_wrapper_type(key, value));
+            _split_node(leaf_ptr, key, value_ptr);
         } else {
-            _insert_into_node(leaf_ptr, key, new value_wrapper_type(key, value));
+            _insert_into_node(leaf_ptr, key, value_ptr);
 
         }
 
 
-        return true;
+        return {{value_ptr}, true};
     }
 
 
@@ -593,20 +627,20 @@ public:
     /*********************************
      * FIND
      *********************************/
-    std::pair<bool, const mapped_type &> find(const key_type &key) {
+    const_iterator find(const key_type &key) const {
 
         auto results = _find(key);
 
         if (results.found) {
             if (results.node->deleted[results.index]) {
-                return {false, mapped_type{}};
+                return cend();
             } else {
                 auto * value_ptr = (value_wrapper_type *)results.node->child_ptrs[results.index];
-                return {true, value_ptr->kv.value};
+                return const_iterator{value_ptr};
             }
         }
 
-        return {false, mapped_type{}};
+        return cend();
 
     }
     /*********************************
@@ -631,12 +665,32 @@ public:
     /*********************************
      * CBEGIN
      *********************************/
-    const_iterator cbegin() { return const_iterator(values_); }
+    const_iterator cbegin() const { return const_iterator(values_); }
+    const_iterator begin() const { return const_iterator(values_); }
 
     /*********************************
      * CEND
      *********************************/
-    const_iterator cend() { return const_iterator(nullptr); }
+    const_iterator cend() const { return const_iterator(nullptr); }
+    const_iterator end() const { return const_iterator(nullptr); }
+
+
+    /*********************************
+     * COMPUTE_SIZE
+     * 
+     * Adding a size attribute to the tree would create a contention hotspot
+     * when we start adding support for concurrency.
+     *********************************/
+    std::size_t compute_size() const {
+        std::size_t size = 0;
+
+        for (auto const & it : *this) {
+            size += 1;
+        }
+
+        return size;
+    }
+
 
     /*******************************************************
      * INTERFACE for C++20
@@ -659,8 +713,16 @@ private :
     tree_node_type* root_node_;
     value_wrapper_type* values_ = nullptr;
 
+    friend class set<K>;
+
+
 };
 
+
+template<class K, class V, std::size_t FO>
+void swap(BPlusTree<K, V, FO> &a, BPlusTree<K, V, FO> &b) {
+    a.swap(b);
+}
 
 /**************************************/
 }

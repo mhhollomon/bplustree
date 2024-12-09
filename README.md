@@ -21,19 +21,35 @@ Caveat Scriptor
 
 ### Constructor
 ```cpp
+// default constructor
 BPT::BPlusTree<class K, class V, std::size_t FO = 5>();
+// copy constructor
+BPT::BPlusTree(const BPT::BPlusTree &other);
+// move constructor
+BPT::BPlusTree(BPT::BPlusTree &&other);
 ```
 - `K` is the key type.
 - `V` is the value type.
 - `FO` is the Fanout - maximum number of nodes per level.
 
+### Assignment
+```cpp
+// copy assigment
+BPlusTree &operator=(BPlusTree const &other);
+//move assignment
+BPlusTree &operator=(BPlusTree &&other)
+``
+
 ### Insert
 ```cpp
-bool insert(K key, V value);
+std::pair<const_iterator, bool> insert(const key_type &key, mapped_type value);
 ```
 
 Returns `true` if it did the insert. If the key already exists, returns 
 `false`.
+
+The iterator will point to either the newly insert item or the item that blocked
+the insertion.
 
 ### Remove
 ```cpp
@@ -44,7 +60,7 @@ Returns `true` if it actually needed to remove the key.
 
 ### Find
 ```cpp
-std::pair<bool, const value_type &> find(const key_type &key);
+const_iterator find(const key_type &key) const;
 ```
 
 ### Clear
@@ -52,6 +68,11 @@ std::pair<bool, const value_type &> find(const key_type &key);
 void clear();
 ```
 Removes all keys from the tree.
+
+### Compute_size
+```cpp
+std::size_t compute_size() const;
+```
 
 ### Iterators
 Note that only const iterators are provide at the moment.
@@ -63,8 +84,8 @@ Also, the iterator classes are private.
 The only operation that invalidates iterators is `clear()`.
 
 ```cpp
-const_iterator cbegin();
-const_iterator cend();
+const_iterator cbegin() const;
+const_iterator cend()const;
 ```
 
 ### At
@@ -164,6 +185,7 @@ Similar to above.
 
 ### std::set interface
 
+In progress...
 Similar to above.
 
 ### Optimizing

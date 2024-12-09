@@ -79,7 +79,7 @@ TEST_CASE("Multilevel split", "[stress]") {
     for (int index = 0; index < keys.size(); ++index) {
         int i = keys.at(index);
         //std::cout << "INSERT " << index << "(" << i << ") ------------------------------------\n";
-        REQUIRE(tree.insert(i, i*10) == true);
+        REQUIRE(tree.insert(i, i*10).second == true);
         //tp.print(false);
         check_tree(tree.get_root_ptr(), nullptr);
     }

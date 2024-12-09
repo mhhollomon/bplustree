@@ -48,7 +48,7 @@ TEST_CASE("bulk", "[bulk]") {
 
     // load a bunch
     for (int i : keys) {
-        REQUIRE(tree.insert(i, i*10) == true);
+        REQUIRE(tree.insert(i, i*10).second == true);
     }
 
     //std::cout << "BEGIN ------------------------------------------------------------\n";
@@ -64,7 +64,7 @@ TEST_CASE("bulk", "[bulk]") {
     for(int i = 0; i < num_removes; ++i) {
 
         int key = bulk_distr(g);
-        if (tree.insert(key, key*100)) {
+        if (tree.insert(key, key*100).second) {
             total_inserts += 1;
         }
 

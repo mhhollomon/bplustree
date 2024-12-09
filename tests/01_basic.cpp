@@ -15,7 +15,22 @@ TEST_CASE("Basic Test", "[basic]") {
 TEST_CASE("One insert", "[basic]") {
     BPlusTree<int, int> tree;
 
-    REQUIRE(tree.insert(5, 50) == true);
+    {
+        auto insert_iter = tree.insert(5, 50);
+
+        REQUIRE(insert_iter.second == true);
+        REQUIRE(insert_iter.first->key == 5);
+        REQUIRE(insert_iter.first->value == 50);
+    }
+
+    {
+        auto insert_iter = tree.insert(5, 50);
+
+        REQUIRE(insert_iter.second == false);
+        REQUIRE(insert_iter.first->key == 5);
+        REQUIRE(insert_iter.first->value == 50);
+    }
+
 
     auto * root = tree.get_root_ptr();
 
@@ -93,11 +108,11 @@ TEST_CASE("lower insert", "[basic]") {
 TEST_CASE("need to split", "[basic]") {
     BPlusTree<int, int> tree;
 
-    REQUIRE(tree.insert(5, 50) == true);
-    REQUIRE(tree.insert(3, 30) == true);
-    REQUIRE(tree.insert(1, 10) == true);
-    REQUIRE(tree.insert(10, 100) == true);
-    REQUIRE(tree.insert(9, 90) == true);
+    REQUIRE(tree.insert(5, 50).second == true);
+    REQUIRE(tree.insert(3, 30).second == true);
+    REQUIRE(tree.insert(1, 10).second == true);
+    REQUIRE(tree.insert(10, 100).second == true);
+    REQUIRE(tree.insert(9, 90).second == true);
     
 
     auto * root = tree.get_root_ptr();
@@ -127,7 +142,7 @@ TEST_CASE("need to split", "[basic]") {
 TEST_CASE("at", "[basic]") {
     BPlusTree<int, int> tree;
 
-    REQUIRE(tree.insert(5, 50) == true);
+    REQUIRE(tree.insert(5, 50).second == true);
     REQUIRE(tree.at(5) == 50);
 
 
@@ -136,8 +151,8 @@ TEST_CASE("at", "[basic]") {
 TEST_CASE("remove", "[basic]") {
     BPlusTree<int, int> tree;
 
-    REQUIRE(tree.insert(5, 50) == true);
-    REQUIRE(tree.insert(6, 60) == true);
+    REQUIRE(tree.insert(5, 50).second == true);
+    REQUIRE(tree.insert(6, 60).second == true);
 
     REQUIRE(tree.remove(20) == false);
 
@@ -145,40 +160,40 @@ TEST_CASE("remove", "[basic]") {
 
     {
         auto find_result = tree.find(5);
-        REQUIRE(find_result.first == false);
+        REQUIRE(find_result == tree.cend());
     }
 
     {
         auto find_result = tree.find(6);
-        REQUIRE(find_result.first == true);
-        REQUIRE(find_result.second == 60);
+        REQUIRE(find_result != tree.cend());
+        REQUIRE(find_result->value == 60);
     }
 
     //tree_printer(tree).print();
 
-    REQUIRE(tree.insert(3, 30) == true);
+    REQUIRE(tree.insert(3, 30).second == true);
     //tree_printer(tree).print();
     {
         auto find_result = tree.find(3);
-        REQUIRE(find_result.first == true);
+        REQUIRE(find_result != tree.cend());
     }
 
-    REQUIRE(tree.insert(5, 5000) == true);
+    REQUIRE(tree.insert(5, 5000).second == true);
     //tree_printer(tree).print();
     {
         auto find_result = tree.find(5);
-        REQUIRE(find_result.first == true);
-        REQUIRE(find_result.second == 5000);
+        REQUIRE(find_result != tree.cend());
+        REQUIRE(find_result->value == 5000);
     }
 
     REQUIRE(tree.remove(5) == true);
-    REQUIRE(tree.insert(10, 100) == true);
-    REQUIRE(tree.insert(11, 110) == true);
+    REQUIRE(tree.insert(10, 100).second == true);
+    REQUIRE(tree.insert(11, 110).second == true);
     //tree_printer(tree).print();
     {
         auto find_result = tree.find(10);
-        REQUIRE(find_result.first == true);
-        REQUIRE(find_result.second == 100);
+        REQUIRE(find_result != tree.cend());
+        REQUIRE(find_result->value == 100);
     }
 
 }
@@ -208,8 +223,8 @@ TEST_CASE("remove", "[basic]") {
 TEST_CASE("const iterator", "[basic]") {
     BPlusTree<int, int> tree;
 
-    REQUIRE(tree.insert(5, 50) == true);
-    REQUIRE(tree.insert(6, 60) == true);
+    REQUIRE(tree.insert(5, 50).second == true);
+    REQUIRE(tree.insert(6, 60).second == true);
 
     REQUIRE(tree.remove(5) == true);
 
