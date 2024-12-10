@@ -57,7 +57,7 @@ TEST_CASE("Multilevel split", "[stress]") {
     int total_inserts = num_inserts;
     int total_removes = 0;
 
-    BPlusTree<int, int> tree;
+    BPlusTree<int, int, 5> tree;
     auto tp = tree_printer{tree};
     keys.reserve(num_inserts);
 

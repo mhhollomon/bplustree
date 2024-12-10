@@ -32,3 +32,6 @@
 *.app
 
 build/
+
+output.txt
+*.log

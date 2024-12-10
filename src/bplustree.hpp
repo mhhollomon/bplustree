@@ -22,7 +22,7 @@ namespace BPT {
 #include "include/_value_wrapper.hpp"
 #include "include/_tree_node.hpp"
 
-constexpr static std::size_t DEFAULT_FAN_OUT = 5;
+constexpr static std::size_t DEFAULT_FAN_OUT = 20;
 
 template<class Key>
 class set;

@@ -7,13 +7,13 @@ using namespace BPT;
 
 
 TEST_CASE("Basic Test", "[basic]") {
-    BPlusTree<int, int> tree;
+    BPlusTree<int, int, 5> tree;
 
     REQUIRE(sizeof(tree) == 16);
 }
 
 TEST_CASE("One insert", "[basic]") {
-    BPlusTree<int, int> tree;
+    BPlusTree<int, int, 5> tree;
 
     {
         auto insert_iter = tree.insert(5, 50);
@@ -48,7 +48,7 @@ TEST_CASE("One insert", "[basic]") {
 }
 
 TEST_CASE("Two inserts", "[basic]") {
-    BPlusTree<int, int> tree;
+    BPlusTree<int, int, 5> tree;
 
     tree.insert(5, 50);
     tree.insert(6, 60);
@@ -76,7 +76,7 @@ TEST_CASE("Two inserts", "[basic]") {
 }
 
 TEST_CASE("lower insert", "[basic]") {
-    BPT::BPlusTree<int, int> tree;
+    BPT::BPlusTree<int, int, 5> tree;
 
     tree.insert(5, 50);
     tree.insert(3, 30);
@@ -106,7 +106,7 @@ TEST_CASE("lower insert", "[basic]") {
 }
 
 TEST_CASE("need to split", "[basic]") {
-    BPlusTree<int, int> tree;
+    BPlusTree<int, int, 5> tree;
 
     REQUIRE(tree.insert(5, 50).second == true);
     REQUIRE(tree.insert(3, 30).second == true);
@@ -140,7 +140,7 @@ TEST_CASE("need to split", "[basic]") {
 
 
 TEST_CASE("at", "[basic]") {
-    BPlusTree<int, int> tree;
+    BPlusTree<int, int, 5> tree;
 
     REQUIRE(tree.insert(5, 50).second == true);
     REQUIRE(tree.at(5) == 50);
@@ -149,7 +149,7 @@ TEST_CASE("at", "[basic]") {
 }
 
 TEST_CASE("remove", "[basic]") {
-    BPlusTree<int, int> tree;
+    BPlusTree<int, int, 5> tree;
 
     REQUIRE(tree.insert(5, 50).second == true);
     REQUIRE(tree.insert(6, 60).second == true);
@@ -221,7 +221,7 @@ TEST_CASE("remove", "[basic]") {
  */
 
 TEST_CASE("const iterator", "[basic]") {
-    BPlusTree<int, int> tree;
+    BPlusTree<int, int, 5> tree;
 
     REQUIRE(tree.insert(5, 50).second == true);
     REQUIRE(tree.insert(6, 60).second == true);

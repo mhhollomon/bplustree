@@ -161,6 +161,10 @@ int eid = 10;
 
 std::cout << "employee id " << eid << " is " << employees.at[eid].name << "\n";
 ```
+## Set
+A replacement for `std::set` is available.
+
+C.f. [Set documentation](docs/set.md)
 
 ## TO DO
  
