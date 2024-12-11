@@ -69,9 +69,6 @@ TEST_CASE("Multilevel split", "[stress]") {
     std::random_device rd;
     std::mt19937 g(rd());
 
-    // inclusive
-    std::uniform_int_distribution<int> shuffle_dist(0, num_inserts-1);
-
     // Shuffle the array
     std::shuffle(keys.begin(), keys.end(), g); 
 

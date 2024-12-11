@@ -49,3 +49,5 @@ if (BPLUSTREE_BUILD_TESTS)
     catch_discover_tests(tests_runner)
     #add_test(NAME "ALL TESTS" COMMAND tests_runner.exe --success)
 endif()
+
+add_subdirectory(examples)

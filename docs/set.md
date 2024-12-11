@@ -10,7 +10,10 @@ class set;
 ```
 
 The class doesn't currently give you access to change the fan out of the underlying
-tree. 
+tree.
+
+However, the default fan-out of 20 should give this class a significant lookup advantage
+over `std::set` when there are 1000s of items in the set.
 
 ## Constructors
 
@@ -30,7 +33,7 @@ set(set&& other);
 ## Assignment
 
 ```cpp
-set &operator=(const set& other);
+set& operator=(const set& other);
 set& operator=( set&& other ) noexcept;
 set& operator=( std::initializer_list<value_type> ilist );
 ```
