@@ -26,6 +26,7 @@ TEST_CASE("One insert", "[basic]") {
     {
         auto insert_iter = tree.insert(5, 50);
 
+        tree_printer(tree).print();
         REQUIRE(insert_iter.second == false);
         REQUIRE(insert_iter.first->key == 5);
         REQUIRE(insert_iter.first->value == 50);

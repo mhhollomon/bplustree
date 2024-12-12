@@ -25,6 +25,7 @@ TEST_CASE("bulk", "[bulk]") {
     int total_removes = 0;
 
     BPlusTree<int, int, 10> tree;
+    auto tp = tree_printer(tree);
     keys.reserve(num_inserts);
 
     //std::cout << "Here 1\n";
@@ -48,7 +49,9 @@ TEST_CASE("bulk", "[bulk]") {
 
     // load a bunch
     for (int i : keys) {
+        //std::cout << "insert : " << i << "--------------------------\n";
         REQUIRE(tree.insert(i, i*10).second == true);
+        //tp.print();
     }
 
     //std::cout << "BEGIN ------------------------------------------------------------\n";

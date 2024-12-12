@@ -54,8 +54,8 @@ public:
 
             while (value_ptr != nullptr) {
                 std::cout << "(" << get_alias(value_ptr) << ") " << 
-                    (value_ptr->deleted ? 'D' : ' ') << value_ptr->key << ", " << 
-                    value_ptr->value << "\n";
+                    (value_ptr->deleted ? 'D' : ' ') << value_ptr->kv.key << ", " << 
+                    value_ptr->kv.value << "\n";
                 value_ptr = value_ptr->next;
             }
         }

@@ -193,6 +193,69 @@ private:
 
     };
 
+    /**********************************
+     * _intranode_leaf_search
+     * For leaf node, we ae only interested in equality.
+     * Only use "<" in order to prepare for a compare template.
+     **********************************/
+    int _intranode_leaf_search(key_type const &key, tree_node_type const *node) const {
+        assert(node->is_leaf());
+        int found_index = -1;
+        for (size_t index = 0; index < node->num_keys; ++index) {
+
+            if ( key < node->keys[index] ) {
+                // Nope - not there.
+                break;
+            } else  if (node->keys[index] < key ) {
+                // Look further.
+                continue;
+            } else {
+                // it is "equivalent".
+                found_index = index;
+                break;
+            }
+        }
+
+        //std::cout << "_intranode_leaf_search : returning " << found_index << " for " << key << "\n";
+
+        return found_index;
+    }
+
+    /**********************************
+     * _intranode_internal_search
+     * For internal node, we need to differenciate between "<" and ">=".
+     * Only use "<" in order to prepare for a compare template.
+     **********************************/
+    int _intranode_internal_search(key_type const &key, tree_node_type const *node) const {
+        assert(node->is_internal());
+
+        int found_index = -1;
+        for (size_t index = 0; index < node->num_keys; ++index) {
+
+            if ( key < node->keys[index] ) {
+                // This index will do
+                found_index = index;
+                break;
+            } else  if (node->keys[index] < key ) {
+                // Look further.
+                continue;
+            } else {
+                // it is "equivalent".
+                // The _next_ index will do
+                found_index = index + 1;
+                break;
+            }
+        }
+
+        if (found_index == -1) {
+            found_index = node->num_keys;
+        }
+
+        //std::cout << "_intranode_internal_search : returning " << found_index << " for " << key << "\n";
+
+        return found_index;
+    }
+
 
     /**********************************
      * _find
@@ -200,39 +263,29 @@ private:
      * Note : returns "true" even if the key has been deleted.
      * It is up to the caller to decide if that is good or bad.
      **********************************/
-    FindResults _find(key_type key) const {
+    FindResults _find(key_type const & key) const {
 
         auto *current_node_ptr = get_root_ptr();
         bool found = false;
         int found_index = -1;
 
         while (1) {
-            if (current_node_ptr->ntype == LeafNode) {
+            if (current_node_ptr->is_leaf()) {
 
-                for (size_t index = 0; index < current_node_ptr->num_keys; ++index) {
-                    if (current_node_ptr->keys[index] == key) {
-                        found = true;
-                        found_index = index;
-                        break; // out of for-loop
-                    }
+                auto retval = _intranode_leaf_search(key, current_node_ptr);
+                if (retval != -1) {
+                    found = true;
+                    found_index = retval;
                 }
                 // We are at a leaf so no further recursion possible.
                 // either we found it in the loop or we did not.
                 break; // out of while-loop
 
-            } else if (current_node_ptr->ntype == InternalNode) {
+            } else if (current_node_ptr->is_internal()) {
 
-                bool found_next_node = false;
-                for (size_t index = 0; index < current_node_ptr->num_keys; ++index) {
-                    if (key < current_node_ptr->keys[index]) {
-                        current_node_ptr = (tree_node_type *)(current_node_ptr->child_ptrs[index]);
-                        found_next_node = true;
-                        break; // out of for-loop
-                    }
-                }
-                if (not found_next_node) {
-                    current_node_ptr = (tree_node_type *)(current_node_ptr->child_ptrs[current_node_ptr->num_keys]);
-                }
+                auto retval = _intranode_internal_search(key, current_node_ptr);
+                found_index = retval;
+                current_node_ptr = (tree_node_type *)(current_node_ptr->child_ptrs[retval]);
 
             } else {
                 throw std::runtime_error(std::format("Unknown node type {}", int(current_node_ptr->ntype)));
@@ -305,7 +358,7 @@ private:
         //std::cout << std::format("_split_internal : (1) promoted_key = {} promoted_index = {}\n", promoted_key, promoted_index);
 
 
-        if (new_key > promoted_key) {
+        if (promoted_key < new_key ) {
             promoted_index += 1;
             promoted_key = old_node->keys[promoted_index];
 
@@ -466,7 +519,7 @@ private:
      * _insert_into_node
      **********************************/
 
-    void _insert_into_node(tree_node_type *node, const key_type &new_key, void* new_child ) {
+    void _insert_into_node(tree_node_type *node, key_type const &new_key, void* new_child ) {
         assert(node != nullptr);
         assert(new_child != nullptr);
         assert(not node->is_full());
@@ -502,7 +555,7 @@ private:
                 --check_index, --insert_index) {
             
             //std::cout << std::format("_insert : loop - check_index = {}, insert_index = {}\n", check_index, insert_index);
-            if (check_index < 0 or new_key > keys_ptr[check_index]) {
+            if (check_index < 0 or keys_ptr[check_index] < new_key ) {
                 keys_ptr[insert_index] = new_key;
 
                 if (node->is_internal()) {

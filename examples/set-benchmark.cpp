@@ -76,7 +76,9 @@ int main() {
     duration = duration_cast<microseconds>(end - start);
     std::cout << "std::map Duration = " << duration << "\n";
 
-    std::cout << "print to make sure there is a size effect " << size;
+    if (size != (probe_count * 3)) {
+        std::cout << "The compiler cheated : " << size << std::endl;
+    }
 
     return 0;
 
