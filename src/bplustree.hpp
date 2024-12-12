@@ -14,6 +14,9 @@
 
 //#include <iostream>
 
+#define LEAF_BIN_SEARCH
+#define INTERNAL_BIN_SEARCH
+
 
 
 namespace BPT {
@@ -193,6 +196,10 @@ private:
 
     };
 
+    bool _equivalent(key_type const &a, key_type const & b) const {
+        return not (a < b) and not (b < a);
+    }
+
     /**********************************
      * _intranode_leaf_search
      * For leaf node, we ae only interested in equality.
@@ -201,6 +208,31 @@ private:
     int _intranode_leaf_search(key_type const &key, tree_node_type const *node) const {
         assert(node->is_leaf());
         int found_index = -1;
+
+#ifdef LEAF_BIN_SEARCH
+
+        std::size_t bottom = 0, top = node->num_keys;
+
+        while(top != bottom) {
+            std::size_t mid = (top + bottom)/2;
+
+            if (mid == bottom) {
+                if (_equivalent(key,node->keys[mid])) {
+                    found_index = mid;
+                }
+                break;
+            }
+             
+            if (key < node->keys[mid]) {
+                top = mid;
+            } else if (node->keys[mid] < key) {
+                bottom = mid;
+            } else {
+                found_index = mid;
+                break;
+            }
+        }
+#else
         for (size_t index = 0; index < node->num_keys; ++index) {
 
             if ( key < node->keys[index] ) {
@@ -215,6 +247,7 @@ private:
                 break;
             }
         }
+#endif
 
         //std::cout << "_intranode_leaf_search : returning " << found_index << " for " << key << "\n";
 
@@ -230,6 +263,36 @@ private:
         assert(node->is_internal());
 
         int found_index = -1;
+
+#ifdef INTERNAL_BIN_SEARCH
+        std::size_t bottom = 0, top = node->num_keys;
+
+        while(top != bottom) {
+            std::size_t mid = (top + bottom)/2;
+
+            if (mid == bottom) {
+                // We've run out of room.
+                if (key < node->keys[mid]) {
+                    found_index = mid;
+                } else {
+                    // new key >= to current key
+                    found_index = mid +1;
+                }
+                break;
+            }
+             
+            if (key < node->keys[mid]) {
+                top = mid;
+            } else if (node->keys[mid] < key) {
+                bottom = mid;
+            } else {
+                // the "equivalent" pointer is to the right.
+                found_index = mid+1;
+                break;
+            }
+        }
+
+#else
         for (size_t index = 0; index < node->num_keys; ++index) {
 
             if ( key < node->keys[index] ) {
@@ -250,7 +313,7 @@ private:
         if (found_index == -1) {
             found_index = node->num_keys;
         }
-
+#endif
         //std::cout << "_intranode_internal_search : returning " << found_index << " for " << key << "\n";
 
         return found_index;

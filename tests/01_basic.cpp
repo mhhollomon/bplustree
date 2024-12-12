@@ -50,9 +50,15 @@ TEST_CASE("One insert", "[basic]") {
 
 TEST_CASE("Two inserts", "[basic]") {
     BPlusTree<int, int, 5> tree;
-
+    auto tp = tree_printer(tree);
+    std::cout << "Heelo 1\n";
     tree.insert(5, 50);
+    std::cout << "Heelo 2\n";
+    tp.print();
+    std::cout << "Heelo 3\n";
     tree.insert(6, 60);
+    std::cout << "Heelo 4\n";
+    tp.print();
 
     auto * root = tree.get_root_ptr();
 
@@ -151,10 +157,12 @@ TEST_CASE("at", "[basic]") {
 
 TEST_CASE("remove", "[basic]") {
     BPlusTree<int, int, 5> tree;
+    auto tp = tree_printer(tree);
 
     REQUIRE(tree.insert(5, 50).second == true);
     REQUIRE(tree.insert(6, 60).second == true);
-
+    tp.print();
+    
     REQUIRE(tree.remove(20) == false);
 
     REQUIRE(tree.remove(5) == true);
