@@ -2,9 +2,14 @@
 
 Implementation of a B+ Tree.
 
+This works best with a large number of records and a large fan-out.
+
 Requires C++20.
 
 MIT license.
+
+**Note** `main` branch is usually a work in progress. You will be much
+better served using the latest release.
 
 ## Benchmark
 
@@ -81,7 +86,6 @@ I don't plan to support all the really gnarly bits about hinting and node_ptrs.
 Similar to above.
 
 ### Optimizing
-- Intranode searching is currently linear. switch to binary search.
 - work on the splitting algorithm. It still does more data copies/moves than really necessary.
 
 ### Iterators

@@ -10,8 +10,43 @@
 using namespace std::chrono;
 
 
-constexpr int key_count = 1'000'000;
-constexpr int probe_count = 500'000;
+constexpr int key_count = 2'000'000;
+constexpr int probe_count = 1'000'000;
+
+template<class T, bool TWO>
+void time_it(T &object, std::string const &name, std::vector<int> const &load_keys, std::vector<int> const &probe_keys) {
+
+    // Load
+    auto start = high_resolution_clock::now();
+    for (int i : load_keys) {
+        if constexpr (TWO) {
+            object.insert({i, i});
+        } else {
+            object.insert(i);
+        }
+    }
+    auto end = high_resolution_clock::now();
+    auto load_duration = duration_cast<microseconds>(end - start).count();
+
+    // probe
+    int count = 0;
+    start = high_resolution_clock::now();
+    for (int i = 0; i < probe_count; ++i) {
+        auto r = object.contains(probe_keys[i % key_count ]);
+        count += r;
+    }
+
+    end = high_resolution_clock::now();
+    auto probe_duration = duration_cast<microseconds>(end - start).count();
+
+    if (count != probe_count) {
+        std::cout << "Missing probes : " << count << std::endl;
+    }
+
+    std::cout << '"' << name << "\"," << load_duration << "," << probe_duration << std::endl;
+
+
+}
 
 int main() {
 
@@ -27,58 +62,24 @@ int main() {
     std::mt19937 g(rd());
 
     // Shuffle the array
-    std::shuffle(keys.begin(), keys.end(), g); 
+    std::shuffle(keys.begin(), keys.end(), g);
 
+    auto probe_keys = keys;
+    std::shuffle(probe_keys.begin(), probe_keys.end(), g);
+
+
+
+    BPT::BPlusTree<int, int> bpt_tree;
+    BPT::BPlusTree<int, int, 100> bpt_tree_big;
     BPT::set<int> bpt_set;
     std::set<int> std_set;
     std::map<int, int> std_map;
 
-    for (int i : keys) {
-        bpt_set.insert(i);
-        std_set.insert(i);
-        std_map.insert({i,i});
-    }
-
-    // Reshuffle
-    std::shuffle(keys.begin(), keys.end(), g); 
-
-    int size = 0;
-
-    // BPT timing
-    auto start = high_resolution_clock::now();
-
-    for (int i = 0; i < probe_count; ++i) {
-        auto r = bpt_set.contains(keys[i % key_count ]);
-        size += r;
-    }
-    auto end = high_resolution_clock::now();
-    auto duration = duration_cast<microseconds>(end - start);
-    std::cout << "BPT::set Duration = " << duration << "\n";
-
-    start = high_resolution_clock::now();
-
-    // STD timing
-    for (int i = 0; i < probe_count; ++i) {
-        auto r = std_set.contains(keys[i % key_count ]);
-        size += r;
-    }
-    end = high_resolution_clock::now();
-    duration = duration_cast<microseconds>(end - start);
-    std::cout << "std::set Duration = " << duration << "\n";
-
-    start = high_resolution_clock::now();
-
-    for (int i = 0; i < probe_count; ++i) {
-        auto r = std_map.contains(keys[i % key_count ]);
-        size += r;
-    }
-    end = high_resolution_clock::now();
-    duration = duration_cast<microseconds>(end - start);
-    std::cout << "std::map Duration = " << duration << "\n";
-
-    if (size != (probe_count * 3)) {
-        std::cout << "The compiler cheated : " << size << std::endl;
-    }
+    time_it<BPT::set<int>, false>(bpt_set, "BPT::set<int>", keys, probe_keys);
+    time_it<std::set<int>, false>(std_set, "std::set<int>", keys, probe_keys);
+    time_it<std::map<int, int>, true>(std_map, "std::map<int,int>", keys, probe_keys);
+    time_it<BPT::BPlusTree<int, int>, true>(bpt_tree, "BPT::BPlusTree<int, int>", keys, probe_keys);
+    time_it<BPT::BPlusTree<int, int, 100>, true>(bpt_tree_big, "BPT::BPlusTree<int, int, 100>", keys, probe_keys);
 
     return 0;
 

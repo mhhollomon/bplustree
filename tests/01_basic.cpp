@@ -6,12 +6,6 @@
 using namespace BPT;
 
 
-TEST_CASE("Basic Test", "[basic]") {
-    BPlusTree<int, int, 5> tree;
-
-    REQUIRE(sizeof(tree) == 16);
-}
-
 TEST_CASE("One insert", "[basic]") {
     BPlusTree<int, int, 5> tree;
 
@@ -162,7 +156,7 @@ TEST_CASE("remove", "[basic]") {
     REQUIRE(tree.insert(5, 50).second == true);
     REQUIRE(tree.insert(6, 60).second == true);
     tp.print();
-    
+
     REQUIRE(tree.remove(20) == false);
 
     REQUIRE(tree.remove(5) == true);

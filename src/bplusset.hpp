@@ -140,7 +140,7 @@ public :
     }
 
     bool contains(const key_type & key) const {
-        return (tree_.find(key) != tree_.cend());
+        return tree_.contains(key);
     }
 
     std::size_t count(const key_type & key) const {

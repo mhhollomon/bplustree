@@ -30,7 +30,8 @@ constexpr static std::size_t DEFAULT_FAN_OUT = 20;
 template<class Key>
 class set;
 
-template<class K, class V, std::size_t FO = DEFAULT_FAN_OUT>
+template<class K, class V, std::size_t FO = DEFAULT_FAN_OUT, class COMPARE = std::less<K>>
+requires (FO > 3)
 class BPlusTree {
 
 public :
@@ -42,6 +43,8 @@ public :
     using value_wrapper_type = ValueWrapper<key_type, mapped_type>;
     using value_type = typename value_wrapper_type::kvpair;
     using tree_node_type = TreeNode<key_type, mapped_type, fan_out>;
+
+    using key_comp = COMPARE;
 
     BPlusTree() : root_node_(new tree_node_type(LeafNode)) {
     }
@@ -77,9 +80,7 @@ public :
         _clear_all(true, false);
     }
 
-    tree_node_type &get_root() const { return *root_node_; }
     tree_node_type *get_root_ptr() const { return root_node_; }
-
     value_wrapper_type *get_values() const { return values_; }
 
     struct FindResults {
@@ -196,8 +197,12 @@ private:
 
     };
 
+    bool _is_less(key_type const &a, key_type const & b) const {
+        return key_compare_func(a, b);
+    }
+
     bool _equivalent(key_type const &a, key_type const & b) const {
-        return not (a < b) and not (b < a);
+        return not _is_less(a, b) and not _is_less(b, a);
     }
 
     /**********************************
@@ -223,9 +228,9 @@ private:
                 break;
             }
              
-            if (key < node->keys[mid]) {
+            if (_is_less(key, node->keys[mid])) {
                 top = mid;
-            } else if (node->keys[mid] < key) {
+            } else if (_is_less(node->keys[mid], key)) {
                 bottom = mid;
             } else {
                 found_index = mid;
@@ -235,10 +240,10 @@ private:
 #else
         for (size_t index = 0; index < node->num_keys; ++index) {
 
-            if ( key < node->keys[index] ) {
+            if ( _is_less(key, node->keys[mid]) ) {
                 // Nope - not there.
                 break;
-            } else  if (node->keys[index] < key ) {
+            } else  if (_is_less(node->keys[mid], key) ) {
                 // Look further.
                 continue;
             } else {
@@ -272,7 +277,7 @@ private:
 
             if (mid == bottom) {
                 // We've run out of room.
-                if (key < node->keys[mid]) {
+                if (_is_less(key, node->keys[mid])) {
                     found_index = mid;
                 } else {
                     // new key >= to current key
@@ -281,9 +286,9 @@ private:
                 break;
             }
              
-            if (key < node->keys[mid]) {
+            if (_is_less(key, node->keys[mid])) {
                 top = mid;
-            } else if (node->keys[mid] < key) {
+            } else if (_is_less(node->keys[mid], key)) {
                 bottom = mid;
             } else {
                 // the "equivalent" pointer is to the right.
@@ -295,11 +300,11 @@ private:
 #else
         for (size_t index = 0; index < node->num_keys; ++index) {
 
-            if ( key < node->keys[index] ) {
+            if ( _is_less(key, node->keys[mid]) ) {
                 // This index will do
                 found_index = index;
                 break;
-            } else  if (node->keys[index] < key ) {
+            } else  if (_is_less(node->keys[mid], key)) {
                 // Look further.
                 continue;
             } else {
@@ -421,13 +426,13 @@ private:
         //std::cout << std::format("_split_internal : (1) promoted_key = {} promoted_index = {}\n", promoted_key, promoted_index);
 
 
-        if (promoted_key < new_key ) {
+        if (_is_less(promoted_key,new_key) ) {
             promoted_index += 1;
             promoted_key = old_node->keys[promoted_index];
 
             //std::cout << std::format("_split_internal : (2) promoted_key = {} promoted_index = {}\n", promoted_key, promoted_index);
 
-            if (new_key < promoted_key) {
+            if (_is_less(new_key,promoted_key)) {
                 promoted_key = new_key;
                 new_key_promoted = true;
             }
@@ -473,7 +478,7 @@ private:
         } else {
             old_node->num_keys = copy_min - 1;
 
-            if (new_key < promoted_key) {
+            if (_is_less(new_key, promoted_key)) {
                 _insert_into_node(old_node, new_key, new_child);
                 new_child->parent = old_node;
             } else {
@@ -544,7 +549,7 @@ private:
 
         // need to integrate this into the loop above. this does more shuffling.
 
-        if (new_key < new_node->min_key()) {
+        if (_is_less(new_key, new_node->min_key())) {
             //std::cout << "split : inserting into old_node\n";
             _insert_into_node(old_node, new_key, child_ptr);
         } else {
@@ -618,7 +623,7 @@ private:
                 --check_index, --insert_index) {
             
             //std::cout << std::format("_insert : loop - check_index = {}, insert_index = {}\n", check_index, insert_index);
-            if (check_index < 0 or keys_ptr[check_index] < new_key ) {
+            if (check_index < 0 or _is_less(keys_ptr[check_index], new_key) ) {
                 keys_ptr[insert_index] = new_key;
 
                 if (node->is_internal()) {
@@ -721,6 +726,9 @@ public:
         return {{value_ptr}, true};
     }
 
+    std::pair<const_iterator, bool> insert(std::pair<key_type, mapped_type> new_pair) {
+        return insert(new_pair.first, new_pair.second);
+    }
 
     /**********************************
      * REMOVE
@@ -807,6 +815,10 @@ public:
         return size;
     }
 
+    bool contains(const key_type & key) const {
+        return (find(key) != cend());
+    }
+
 
     /*******************************************************
      * INTERFACE for C++20
@@ -828,6 +840,8 @@ public:
 private :
     tree_node_type* root_node_;
     value_wrapper_type* values_ = nullptr;
+
+    const decltype(COMPARE()) key_compare_func = COMPARE();
 
     friend class set<K>;
 

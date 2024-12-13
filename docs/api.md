@@ -3,7 +3,7 @@
 ### Constructor
 ```cpp
 // default constructor
-BPT::BPlusTree<class K, class V, std::size_t FO = 5>();
+BPT::BPlusTree<class K, class V, std::size_t FO = 20, class COMPARE = std::less<K>>();
 // copy constructor
 BPT::BPlusTree(const BPT::BPlusTree &other);
 // move constructor
@@ -12,6 +12,9 @@ BPT::BPlusTree(BPT::BPlusTree &&other);
 - `K` is the key type.
 - `V` is the value type.
 - `FO` is the Fanout - maximum number of nodes per level.
+- `COMPARE` is the function object to use to compare keys.
+
+**Note that FO must be larger than 3.**
 
 ### Assignment
 ```cpp
