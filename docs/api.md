@@ -70,6 +70,8 @@ The only operation that invalidates iterators is `clear()`.
 ```cpp
 const_iterator cbegin() const;
 const_iterator cend()const;
+reverse_iterator crbegin() const;
+reverse_iterator crend()const;
 ```
 
 ### At

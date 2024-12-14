@@ -34,7 +34,14 @@ if (BPLUSTREE_BUILD_TESTS)
     CPMAddPackage("gh:catchorg/Catch2@3.7.1")
 
     set(TEST_SOURCE_DIR     ${CMAKE_CURRENT_SOURCE_DIR}/tests)
-    file(GLOB TEST_SOURCES  ${TEST_SOURCE_DIR}/*.cpp)
+    set(TEST_SOURCES
+    ${TEST_SOURCE_DIR}/01_basic.cpp
+    ${TEST_SOURCE_DIR}/02_iterators.cpp
+    ${TEST_SOURCE_DIR}/05_set.cpp
+    ${TEST_SOURCE_DIR}/10_bulk.cpp
+    ${TEST_SOURCE_DIR}/20_stress.cpp
+
+    )
     message("test sources = ${TEST_SOURCES}")
 
     enable_testing()

@@ -14,10 +14,6 @@
 
 //#include <iostream>
 
-#define LEAF_BIN_SEARCH
-#define INTERNAL_BIN_SEARCH
-
-
 
 namespace BPT {
 /**************************************/
@@ -56,7 +52,8 @@ public :
 
     void swap(BPlusTree &other) {
         std::swap(root_node_, other.root_node_);
-        std::swap(values_, other.values_);
+        std::swap(values_head_, other.values_head_);
+        std::swap(values_tail_, other.values_tail_);
     }
 
     BPlusTree(BPlusTree &&other) : root_node_(new tree_node_type(LeafNode)) {
@@ -81,7 +78,7 @@ public :
     }
 
     tree_node_type *get_root_ptr() const { return root_node_; }
-    value_wrapper_type *get_values() const { return values_; }
+    value_wrapper_type *get_values() const { return values_head_; }
 
     struct FindResults {
         bool found;
@@ -99,56 +96,8 @@ private:
     /*********************************************************************
      * Private interface
      ********************************************************************/
-    struct const_iterator {
-
-        using iterator_category = std::input_iterator_tag;
-        using difference_type = std::ptrdiff_t;
-
-        // hopefully these works.
-        using value_type = value_type;
-        using value_wrapper_type = value_wrapper_type;
-
-        using pointer = value_type const *;
-        using reference = value_type const &;
-
-        const_iterator(value_wrapper_type const *ptr) : ptr_{ptr} {
-
-            while (ptr_ and ptr_->deleted) {
-                ptr_ = ptr_->next;
-            }
-        }
-
-        reference operator*() const {
-            return ptr_->kv;
-        }
-
-        pointer operator->() const { return &(ptr_->kv); }
-
-        // Prefix increment
-        const_iterator & operator++() {
-            // according to the standard
-            // incrementing past the end() is "undefined"
-            // So don't bother trying to catch anything.
-            do {
-                ptr_ = ptr_->next;
-            } while(ptr_ and ptr_->deleted );
-
-            return *this;
-        }
-
-        // Postfix increment
-        const_iterator operator++(int) { const_iterator tmp = *this; ++(*this); return tmp; }
-
-
-        friend bool operator== (const const_iterator& a, const const_iterator& b) { return a.ptr_ == b.ptr_; };
-        friend bool operator!= (const const_iterator& a, const const_iterator& b) { return a.ptr_ != b.ptr_; };
-
-    private :
-        value_wrapper_type const * ptr_;
-
-    };
-
-    struct iterator {
+    template<bool REVR=false>
+    struct _iterator_base {
 
         using iterator_category = std::input_iterator_tag;
         using difference_type = std::ptrdiff_t;
@@ -160,10 +109,13 @@ private:
         using pointer = value_type*;
         using reference = value_type&;
 
-        iterator(value_wrapper_type *ptr) : ptr_{ptr} {
+        _iterator_base(value_wrapper_type *ptr) : ptr_{ptr} {
 
             while (ptr_ and ptr_->deleted) {
-                ptr_ = ptr_->next;
+                if constexpr (REVR)
+                    ptr_ = ptr_->previous;
+                else
+                    ptr_ = ptr_->next;
             }
         }
 
@@ -174,28 +126,65 @@ private:
         pointer operator->() const { return &(ptr_->kv); }
 
         // Prefix increment
-        iterator & operator++() {
+        _iterator_base & operator++() {
             // according to the standard
             // incrementing past the end() is "undefined"
             // So don't bother trying to catch anything.
             do {
-                ptr_ = ptr_->next;
+                if constexpr (REVR)
+                    ptr_ = ptr_->previous;
+                else
+                    ptr_ = ptr_->next;
             } while(ptr_ and ptr_->deleted );
 
             return *this;
         }
 
         // Postfix increment
-        iterator operator++(int) { iterator tmp = *this; ++(*this); return tmp; }
+        _iterator_base operator++(int) { _iterator_base tmp = *this; ++(*this); return tmp; }
 
 
-        friend bool operator== (const iterator& a, const iterator& b) { return a.ptr_ == b.ptr_; };
-        friend bool operator!= (const iterator& a, const iterator& b) { return a.ptr_ != b.ptr_; };
+        friend bool operator== (const _iterator_base& a, const _iterator_base& b) { return a.ptr_ == b.ptr_; };
+        friend bool operator!= (const _iterator_base& a, const _iterator_base& b) { return a.ptr_ != b.ptr_; };
 
     private :
         value_wrapper_type *ptr_;
 
     };
+
+    struct const_iterator : _iterator_base<false> {
+
+        using iterator_category = std::input_iterator_tag;
+        using difference_type = std::ptrdiff_t;
+
+        // hopefully these works.
+        using value_type = value_type;
+        using value_wrapper_type = value_wrapper_type;
+
+        using pointer = value_type const *;
+        using reference = value_type const &;
+
+        using _iterator_base<false>::_iterator_base;
+
+    };
+
+    struct reverse_iterator : _iterator_base<true> {
+
+        using iterator_category = std::input_iterator_tag;
+        using difference_type = std::ptrdiff_t;
+
+        // hopefully these works.
+        using value_type = value_type;
+        using value_wrapper_type = value_wrapper_type;
+
+        using pointer = value_type const *;
+        using reference = value_type const &;
+
+        using _iterator_base<true>::_iterator_base;
+
+    };
+
+    /**************** END of iterators ******************* */
 
     bool _is_less(key_type const &a, key_type const & b) const {
         return key_compare_func(a, b);
@@ -213,8 +202,6 @@ private:
     int _intranode_leaf_search(key_type const &key, tree_node_type const *node) const {
         assert(node->is_leaf());
         int found_index = -1;
-
-#ifdef LEAF_BIN_SEARCH
 
         std::size_t bottom = 0, top = node->num_keys;
 
@@ -237,22 +224,6 @@ private:
                 break;
             }
         }
-#else
-        for (size_t index = 0; index < node->num_keys; ++index) {
-
-            if ( _is_less(key, node->keys[mid]) ) {
-                // Nope - not there.
-                break;
-            } else  if (_is_less(node->keys[mid], key) ) {
-                // Look further.
-                continue;
-            } else {
-                // it is "equivalent".
-                found_index = index;
-                break;
-            }
-        }
-#endif
 
         //std::cout << "_intranode_leaf_search : returning " << found_index << " for " << key << "\n";
 
@@ -269,7 +240,6 @@ private:
 
         int found_index = -1;
 
-#ifdef INTERNAL_BIN_SEARCH
         std::size_t bottom = 0, top = node->num_keys;
 
         while(top != bottom) {
@@ -297,28 +267,6 @@ private:
             }
         }
 
-#else
-        for (size_t index = 0; index < node->num_keys; ++index) {
-
-            if ( _is_less(key, node->keys[mid]) ) {
-                // This index will do
-                found_index = index;
-                break;
-            } else  if (_is_less(node->keys[mid], key)) {
-                // Look further.
-                continue;
-            } else {
-                // it is "equivalent".
-                // The _next_ index will do
-                found_index = index + 1;
-                break;
-            }
-        }
-
-        if (found_index == -1) {
-            found_index = node->num_keys;
-        }
-#endif
         //std::cout << "_intranode_internal_search : returning " << found_index << " for " << key << "\n";
 
         return found_index;
@@ -377,8 +325,8 @@ private:
             }
         }
 
-        if (clear_values and values_) {
-            auto *current = values_;
+        if (clear_values and values_head_) {
+            auto *current = values_head_;
 
             while (current) {
                 auto *next = current->next;
@@ -386,7 +334,8 @@ private:
                 current = next;
             }
 
-            values_ = nullptr;
+            values_head_ = nullptr;
+            values_tail_ = nullptr;
         }
 
     }
@@ -605,13 +554,14 @@ private:
             // Only happens if this is the first insert into the tree.
             // the node will be a leaf node.
             assert(node->is_leaf());
-            assert(values_ == nullptr);
+            assert(values_head_ == nullptr);
 
             child_ptr[0] = new_child;
             keys_ptr[0] = new_key;
             node->num_keys = 1;
 
-            values_ = (value_wrapper_type *)new_child;
+            values_head_ = (value_wrapper_type *)new_child;
+            values_tail_ = values_head_;
     
             return;
 
@@ -641,17 +591,24 @@ private:
                         new_value_ptr->previous = value_ptr[check_index];
                         if (new_next_ptr) {
                             new_next_ptr->previous = new_value_ptr;
+                        } else {
+                            values_tail_ = new_value_ptr;
                         }
                     } else {
                         // look to the right
                         new_value_ptr->next = value_ptr[insert_index + 1];
                         new_value_ptr->previous = value_ptr[insert_index + 1]->previous;
-                        value_ptr[insert_index + 1]->previous = new_value_ptr;
 
                         if (new_value_ptr->previous == nullptr) {
-                            values_ = new_value_ptr;
+                            values_head_ = new_value_ptr;
                         } else {
                             new_value_ptr->previous->next = new_value_ptr;
+                        }
+
+                        if (new_value_ptr->next == nullptr) {
+                            values_tail_ = new_value_ptr;
+                        } else {
+                            new_value_ptr->next->previous = new_value_ptr;
                         }
 
                     }
@@ -778,7 +735,7 @@ public:
     /*********************************
      * BEGIN
      *********************************/
-    //iterator begin() { return iterator(values_); }
+    //iterator begin() { return iterator(values_head_); }
 
     /*********************************
      * END
@@ -789,8 +746,11 @@ public:
     /*********************************
      * CBEGIN
      *********************************/
-    const_iterator cbegin() const { return const_iterator(values_); }
-    const_iterator begin() const { return const_iterator(values_); }
+    const_iterator cbegin() const { return const_iterator(values_head_); }
+    const_iterator begin() const { return const_iterator(values_head_); }
+
+    reverse_iterator crbegin() const { return reverse_iterator(values_tail_); }
+    reverse_iterator rbegin() const { return reverse_iterator(values_tail_); }
 
     /*********************************
      * CEND
@@ -798,6 +758,8 @@ public:
     const_iterator cend() const { return const_iterator(nullptr); }
     const_iterator end() const { return const_iterator(nullptr); }
 
+    reverse_iterator crend() const { return reverse_iterator(nullptr); }
+    reverse_iterator rend() const { return reverse_iterator(nullptr); }
 
     /*********************************
      * COMPUTE_SIZE
@@ -839,7 +801,8 @@ public:
 
 private :
     tree_node_type* root_node_;
-    value_wrapper_type* values_ = nullptr;
+    value_wrapper_type* values_head_ = nullptr;
+    value_wrapper_type* values_tail_ = nullptr;
 
     const decltype(COMPARE()) key_compare_func = COMPARE();
 

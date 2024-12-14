@@ -91,7 +91,7 @@ public :
 
         const_iterator & operator++() { tree_iter_++; return *this; }
 
-        const_iterator operator++(int) { const_iterator tmp = *this; ++(*this); return tmp; }
+        const_iterator operator++(int) { auto tmp = *this; ++(*this); return tmp; }
 
         friend bool operator== (const const_iterator& a, const const_iterator& b) { return a.tree_iter_ == b.tree_iter_; };
         friend bool operator!= (const const_iterator& a, const const_iterator& b) { return a.tree_iter_ != b.tree_iter_; };
@@ -100,6 +100,37 @@ public :
         BPlusTree<Key, Key>::const_iterator tree_iter_;
 
     };
+
+
+    struct reverse_iterator {
+        using iterator_category = std::input_iterator_tag;
+        using difference_type = std::ptrdiff_t;
+
+        using value_type = value_type;
+        using pointer = value_type const *;
+        using reference = value_type const &;
+
+        reverse_iterator(BPlusTree<Key, Key>::reverse_iterator iter) : tree_iter_{iter} {
+        }
+
+        reference operator*() const {
+            return tree_iter_->key;
+        }
+
+        pointer operator->() const { return &(tree_iter_->key); }
+
+        reverse_iterator & operator++() { tree_iter_++; return *this; }
+
+        reverse_iterator operator++(int) { auto tmp = *this; ++(*this); return tmp; }
+
+        friend bool operator== (const reverse_iterator& a, const reverse_iterator& b) { return a.tree_iter_ == b.tree_iter_; };
+        friend bool operator!= (const reverse_iterator& a, const reverse_iterator& b) { return a.tree_iter_ != b.tree_iter_; };
+
+    private :
+        BPlusTree<Key, Key>::reverse_iterator tree_iter_;
+
+    };
+
 
     auto begin() const {
         return const_iterator(tree_.begin());
@@ -117,6 +148,21 @@ public :
         return const_iterator(tree_.cend());
     }
 
+    auto rbegin() const {
+        return reverse_iterator(tree_.rbegin());
+    }
+
+    auto rend() const {
+        return reverse_iterator(tree_.rend());
+    }
+
+    auto crbegin() const {
+        return reverse_iterator(tree_.crbegin());
+    }
+
+    auto crend() const {
+        return reverse_iterator(tree_.crend());
+    }
 
     std::pair<const_iterator, bool> insert(const value_type & value) {
         auto retval = tree_.insert(value, value);

@@ -16,10 +16,14 @@ better served using the latest release.
 The benchmark code in `examples/set-benchmark.cpp` was run and the following
 results were obtained as an average of 5 runs.
 
-*Note* The benchmark is only about **reads**.
-BPT::set Duration = 95,330us
-std::set Duration = 288,101us
-std::map Duration = 273,149us
+
+|Structure        |build   |probe   |
+|-----------------|--------|--------|
+|std::set\<int>   |967ms|608ms|
+|std::map<int,int>|956ms|587ms|
+|BPT::set\<int>   |725ms|272ms|
+|BPT::BPlusTree<int, int>|701ms|272ms|
+|BPT::BPlusTree<int, int, 100>|764ms|210ms|
 
 ## Concurrency
 

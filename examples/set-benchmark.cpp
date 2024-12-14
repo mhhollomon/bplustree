@@ -13,14 +13,16 @@ using namespace std::chrono;
 constexpr int key_count = 2'000'000;
 constexpr int probe_count = 1'000'000;
 
-template<class T, bool TWO>
+template<class T, char MODE >
 void time_it(T &object, std::string const &name, std::vector<int> const &load_keys, std::vector<int> const &probe_keys) {
 
     // Load
     auto start = high_resolution_clock::now();
     for (int i : load_keys) {
-        if constexpr (TWO) {
+        if constexpr (MODE == 'P') {
             object.insert({i, i});
+        } else if constexpr (MODE == 'T') {
+            object.insert(i, i);        
         } else {
             object.insert(i);
         }
@@ -54,7 +56,7 @@ int main() {
 
     keys.reserve(key_count);
 
-        for (int i = 0; i < key_count; ++i) {
+    for (int i = 0; i < key_count; ++i) {
         keys.push_back(i);
     }
     
@@ -75,13 +77,12 @@ int main() {
     std::set<int> std_set;
     std::map<int, int> std_map;
 
-    time_it<BPT::set<int>, false>(bpt_set, "BPT::set<int>", keys, probe_keys);
-    time_it<std::set<int>, false>(std_set, "std::set<int>", keys, probe_keys);
-    time_it<std::map<int, int>, true>(std_map, "std::map<int,int>", keys, probe_keys);
-    time_it<BPT::BPlusTree<int, int>, true>(bpt_tree, "BPT::BPlusTree<int, int>", keys, probe_keys);
-    time_it<BPT::BPlusTree<int, int, 100>, true>(bpt_tree_big, "BPT::BPlusTree<int, int, 100>", keys, probe_keys);
+    time_it<BPT::set<int>, 'O'>(bpt_set, "BPT::set<int>", keys, probe_keys);
+    time_it<std::set<int>, 'O'>(std_set, "std::set<int>", keys, probe_keys);
+    time_it<std::map<int, int>, 'P'>(std_map, "std::map<int,int>", keys, probe_keys);
+    time_it<BPT::BPlusTree<int, int>, 'T'>(bpt_tree, "BPT::BPlusTree<int, int>", keys, probe_keys);
+    time_it<BPT::BPlusTree<int, int, 100>, 'T'>(bpt_tree_big, "BPT::BPlusTree<int, int, 100>", keys, probe_keys);
 
     return 0;
-
 
 }
